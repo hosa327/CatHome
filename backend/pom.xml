@@ -89,11 +89,13 @@
 			<artifactId>aws-crt</artifactId>
 			<version>0.38.2</version>
 		</dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
 
 
-
-
-	</dependencies>
+    </dependencies>
 
 	<build>
 		<plugins>

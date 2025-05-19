@@ -19,7 +19,7 @@ public class User {
     private String password;
 
     @Lob
-    @Column(name = "cert_pem", columnDefinition = "TEXT", nullable = true)
+    @Column(name = "certPem", columnDefinition = "TEXT", nullable = true)
     private String certPem;
 
     @Lob
@@ -27,12 +27,12 @@ public class User {
     private String privateKeyPem;
 
     @Lob
-    @Column(name = "ca_pem", columnDefinition = "TEXT", nullable = true)
+    @Column(name = "caPem", columnDefinition = "TEXT", nullable = true)
     private String caPem;
 
     @Lob
-    @Column(name = "end_point", columnDefinition = "TEXT", nullable = true)
-    private String end_point;
+    @Column(name = "endPoint", columnDefinition = "TEXT", nullable = true)
+    private String endPoint;
 
     @Lob
     @Column(name = "clientId", columnDefinition = "TEXT", nullable = true)
@@ -99,11 +99,11 @@ public class User {
         this.caPem = caPem;
     }
 
-    public String getEnd_point() {
-        return end_point;
+    public String getEndPoint() {
+        return endPoint;
     }
-    public void setEnd_point(String end_point) {
-        this.caPem = end_point;
+    public void setEndPoint(String endPoint) {
+        this.endPoint = endPoint;
     }
 
     public String getClientId() {

@@ -40,4 +40,11 @@ public class GlobalExceptionHandler {
                 .body(Map.of("msg", "Fail to read the file：" + ex.getMessage())); // 500 Internal Server Error
     }
 
+    @ExceptionHandler(ConnectionException.class)
+    public ResponseEntity<?> handleConnectionException(UserException ex) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("msg", ex.getMessage()));
+    }
+
 }

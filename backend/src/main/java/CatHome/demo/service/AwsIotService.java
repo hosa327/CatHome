@@ -1,72 +1,107 @@
 package CatHome.demo.service;
 
+import CatHome.demo.exception.ConnectionException;
+import CatHome.demo.exception.UserException;
 import CatHome.demo.model.User;
+import CatHome.demo.model.UserMessages;
+import CatHome.demo.repository.IoTMessageRepository;
 import CatHome.demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.crt.mqtt.MqttClientConnection;
 import software.amazon.awssdk.crt.mqtt.QualityOfService;
 import software.amazon.awssdk.iot.AwsIotMqttConnectionBuilder;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
 @Service
 public class AwsIotService {
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private IoTMessageRepository messagesRepository;
+    @Autowired
+    private MessageService messageService;
+
+
     private MqttClientConnection connection;
     private String subscribedTopic;
 
     public AwsIotService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
-
-    public synchronized void initConnectionForUser(
-            Long userId, String endpoint, String clientId, String topic
-    ) throws Exception {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User Not Found"));
-
-        String certPem    = user.getCertPem();
-        String keyPem  = user.getPrivateKeyPem();
-        String caPem  = user.getCaPem();
-
-        // 重用前面演示的 initConnection 逻辑
-        initConnection(endpoint, clientId, topic, certPem, keyPem, caPem);
-    }
-
     public void initConnection(
-            String endpoint, String clientId, String topic,
-            String certPem, String keyPem, String caPem
+            Long userId
     ) throws Exception {
-        topic = "GPS_Location";
+        String topic = "arduino_outgoing";
 
-        // 构建并连接
-        connection = AwsIotMqttConnectionBuilder
-                .newMtlsBuilder(certPem, keyPem)
-                .withEndpoint(endpoint)
-                .withClientId(clientId)
-                .withCertificateAuthority(caPem)
+        Optional<User> optUser = userRepository.findById(userId);
+        if(optUser.isPresent()){
+            User user = optUser.get();
+            String endpoint = user.getEndPoint();
+            String clientId = user.getClientId();
+//            String topic = user.getTopic();
+            String certPem = user.getCertPem();
+            String keyPem = user.getPrivateKeyPem();
+            String caPem = user.getCaPem();
+
+            // connect to aws
+            this.connection = AwsIotMqttConnectionBuilder
+                    .newMtlsBuilder(certPem, keyPem)
+                    .withEndpoint(endpoint)
+                    .withClientId(clientId)
+                    .withCertificateAuthority(caPem)
 //                .withCleanSession(true)
 //                .withConnectionEventCallbacks(callbacks)
-                .build();
+                    .build();
 
-        boolean sessionPresent = connection.connect().get();
-        System.out.println("MQTT connected，sessionPresent=" + sessionPresent);
+            boolean sessionPresent = this.connection.connect().get();
+            System.out.println("MQTT connected，sessionPresent=" + sessionPresent);
 
-        connection.subscribe(
-                topic,
+        }
+        else{
+            throw new UserException("User Not Found");
+        }
+    }
+
+    public void subscribeTopic(String topic, Long userId) throws Exception{
+        if (this.connection == null){
+            throw new ConnectionException("Failed to connect to AWS IoT Core");
+        }
+
+        if (!messagesRepository.existsById(userId)) {
+            messagesRepository.save(new UserMessages(userId));
+        }
+
+        messagesRepository.addTopicKey(userId, topic);
+
+        this.connection.subscribe(topic,
                 QualityOfService.AT_LEAST_ONCE,
                 msg -> {
-                    // 当有消息到达时，这段回调会被调用
                     String payload = new String(msg.getPayload(), StandardCharsets.UTF_8);
+                    String receivedAt =
+                            java.time.LocalDateTime
+                                    .now()
+                                    .format(java.time.format.DateTimeFormatter.ISO_DATE_TIME);
                     System.out.printf("Received：topic=%s，payload=%s%n", msg.getTopic(), payload);
+
+                    try {
+                        messageService.saveMsg(userId, topic, payload, receivedAt);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
+
         ).get();
-        subscribedTopic = topic;  // 记录已订阅的主题
+
+        this.subscribedTopic = topic;
         System.out.println("Subscribed：" + topic);
 
+
     }
+
 
     // publish 方法同前面示例…
 }

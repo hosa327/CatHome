@@ -24,6 +24,9 @@ public class UserService {
     private UserRepository userRepository;
 //    @Autowired
 //    private AvatarProperties avatarProperties;
+
+    @Value("${BASE_URL}")
+    String baseUrl;
     private BCryptPasswordEncoder pwdEncoder = new BCryptPasswordEncoder();
 
     public User register(String email, String username, String password) throws IllegalAccessException {
@@ -101,18 +104,32 @@ public class UserService {
         }
     }
 
-    public UserInfo uploadMqttInfo(Long userId, String certPem, String keyPem, String caPem){
+    public UserInfo uploadMqttInfo(Long userId, String certPem, String keyPem, String caPem, String clientId, String endPoint){
         Optional<User> optUser = userRepository.findById(userId);
         if (optUser.isPresent()){
             User user = optUser.get();
             user.setCertPem(certPem);
             user.setPrivateKeyPem(keyPem);
             user.setCaPem(caPem);
+            user.setClientId(clientId);
+            user.setEndPoint(endPoint);
 
+            userRepository.save(user);
             return new UserInfo(user);
         }
        else{
-           throw new UserException("User does not exist");
+           throw new UserException("User Not Found");
+        }
+    }
+
+    public String getAvatarURL(Long userId){
+        Optional<User> optUser = userRepository.findById(userId);
+        if (optUser.isPresent()){
+            User user = optUser.get();
+            String avatarRelativePath = user.getAvatarRelativePath();
+            return (baseUrl + "/avatars/" + avatarRelativePath);
+        } else{
+            throw new UserException("User Not Found");
         }
     }
 }
