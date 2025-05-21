@@ -39,6 +39,11 @@ public class MqttController {
                                               @RequestPart MultipartFile caCert,
                                               HttpServletRequest request) throws IOException {
         HttpSession session = request.getSession(false);
+        if (session == null) {
+            ApiResponse response = new ApiResponse<Void>(3,"Session is invalid or has expired",null);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(response);
+        }
         Long userId = (Long) session.getAttribute("userId");
 
         String certPem       = new String(clientCert.getBytes(), StandardCharsets.UTF_8);
@@ -68,7 +73,7 @@ public class MqttController {
     public ResponseEntity<ApiResponse> awsConnect(HttpServletRequest request){
         HttpSession session = request.getSession(false);
         if (session == null) {
-            ApiResponse response = new ApiResponse<Void>(0,"Session is invalid or has expired",null);
+            ApiResponse response = new ApiResponse<Void>(3,"Session is invalid or has expired",null);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(response);
         }
@@ -99,16 +104,11 @@ public class MqttController {
         HttpSession session = request.getSession(false);
         System.out.print(topicList);
         if (session == null) {
-            ApiResponse response = new ApiResponse<Void>(0,"Session is invalid or has expired",null);
+            ApiResponse response = new ApiResponse<Void>(3,"Session is invalid or has expired",null);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(response);
         }
         Long userId = (Long) session.getAttribute("userId");
-        if (userId == null) {
-            ApiResponse response = new ApiResponse<Void>(0, "User is not authenticated", null);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(response);
-        }
         try {
             for (String topic : topicList) {
                 IotService.subscribeTopic(topic, userId);

@@ -1,5 +1,6 @@
 package CatHome.demo.controller;
 import CatHome.demo.dto.ApiResponse;
+import CatHome.demo.exception.UserException;
 import CatHome.demo.model.User;
 import CatHome.demo.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,10 +35,15 @@ public class UserController {
     }
 
     @PostMapping("/users/avatar")
-    public ResponseEntity<Map<String, String>> uploadAvatar(
-            HttpSession session,
-            @RequestParam("file") MultipartFile file
-    ) throws IOException {
+    public ResponseEntity<?> uploadAvatar(HttpServletRequest request,
+                                          @RequestParam("file") MultipartFile file) throws IOException {
+        HttpSession session = request.getSession(false);
+        if (session == null || session.getAttribute("userId") == null) {
+            ApiResponse response = new ApiResponse<Void>(0, "Session is invalid or has expired", null);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).
+                    body(response);
+        }
+
         Long userId = (Long) session.getAttribute("userId");
 
         UserInfo user = userService.uploadAvatar(userId, file);
@@ -68,7 +74,8 @@ public class UserController {
     }
 
     @GetMapping("/userInfo")
-    public ResponseEntity<?> getAvatar(HttpServletRequest request, @RequestParam List<String> info) throws IOException {;
+    public ResponseEntity<?> getAvatar(HttpServletRequest request,
+                                       @RequestParam List<String> info) throws IOException {;
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("userId") == null) {
             ApiResponse response = new ApiResponse<Void>(0, "Session is invalid or has expired", null);
@@ -90,5 +97,39 @@ public class UserController {
             }
         }
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/user/changePassword")
+    public ResponseEntity<?> changePassword(@RequestBody Map<String,String> params,
+                                            HttpServletRequest request){
+        HttpSession session = request.getSession(false);
+        if (session == null || session.getAttribute("userId") == null) {
+            ApiResponse response = new ApiResponse<Void>(0, "Session is invalid or has expired", null);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).
+                    body(response);
+        }
+        Long userId = (Long) session.getAttribute("userId");
+
+        String oldPwd = params.get("currentPassword");
+        String newPwd = params.get("newPassword");
+
+        try {
+            userService.changePassword(userId, oldPwd, newPwd);
+            ApiResponse response = new ApiResponse<Void>(1, "Password changed successfully!", null);
+            return ResponseEntity.ok()
+                    .body(response);
+        } catch (Exception e) {
+            System.out.print(e.getMessage());
+            ApiResponse response = new ApiResponse<Void>(1, "Failed to change password: "+ e.getMessage(), null);
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(response);
+        }
+
+
+
+
+
+
     }
 }

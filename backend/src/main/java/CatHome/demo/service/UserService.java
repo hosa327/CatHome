@@ -7,6 +7,7 @@ import CatHome.demo.model.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -128,6 +129,21 @@ public class UserService {
             User user = optUser.get();
             String avatarRelativePath = user.getAvatarRelativePath();
             return (baseUrl + "/avatars/" + avatarRelativePath);
+        } else{
+            throw new UserException("User Not Found");
+        }
+    }
+
+    public void changePassword(Long userId, String oldPwd, String newPwd){
+        Optional<User> optUser = userRepository.findById(userId);
+        if (optUser.isPresent()){
+            User user = optUser.get();
+            if (!pwdEncoder.matches(oldPwd, user.getPassword())) {
+                throw new RuntimeException("Current password is incorrect");
+            }
+            String encodedNewPwd = pwdEncoder.encode(newPwd);
+            user.setPassword(encodedNewPwd);
+            userRepository.save(user);
         } else{
             throw new UserException("User Not Found");
         }
