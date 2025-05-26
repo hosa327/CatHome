@@ -16,14 +16,6 @@ public interface IoTMessageRepository extends JpaRepository<UserMessages, Long> 
 
     @Modifying
     @Transactional
-    @Query("UPDATE UserMessages u " +
-            "SET u.subscriptions = :json " +
-            "WHERE u.userId = :userId")
-    void updateSubscriptions(@Param("userId") Long userId,
-                             @Param("json") String json);
-
-    @Modifying
-    @Transactional
     @Query(value =
             "UPDATE user_messages " +
                     "SET subscriptions = JSON_SET(subscriptions, " +
@@ -32,6 +24,16 @@ public interface IoTMessageRepository extends JpaRepository<UserMessages, Long> 
             nativeQuery = true)
     void addTopicKey(@Param("userId") Long userId,
                      @Param("topic") String topic);
+
+    @Modifying
+    @Transactional
+    @Query(value =
+            "UPDATE user_messages " +
+                    "SET subscriptions = JSON_REMOVE(subscriptions, CONCAT('$.\"', :topic, '\"')) " +
+                    "WHERE user_id = :userId",
+            nativeQuery = true)
+    void removeTopicKey(@Param("userId") Long userId,
+                        @Param("topic") String topic);
 
 
     @Modifying

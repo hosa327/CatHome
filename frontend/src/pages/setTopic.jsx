@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import Sidebar from './homeSidebar';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,9 +15,40 @@ export default function SubscribeTopics() {
     const addTopic = () => setTopics([...topics, '']);
 
     const removeTopic = (index) => {
-        if (topics.length === 1) return;
-        setTopics(topics.filter((_, i) => i !== index));
+        const newTopics = topics.filter((_, i) => i !== index);
+        setTopics(newTopics.length > 0 ? newTopics : ['']);
     };
+
+    useEffect(() => {
+        async function fetchSubscriptions(){
+            try {
+                const res = await fetch('http://localhost:2800/mqtt/subscriptions', {
+                    method: 'POST',
+                    credentials: 'include',
+                });
+                const result = await res.json();
+
+                if (!res.ok || result.code !== 1) {
+                    if (result.code === 3) {
+                        alert(result.message);
+                        navigate('/home');
+                        return;
+                    }
+                    throw new Error(result.message || 'Failed to load subscriptions');
+                }
+
+                const existing = Array.isArray(result.data) && result.data.length
+                    ? result.data
+                    : [''];
+                setTopics(existing);
+
+            } catch (err) {
+                console.error('fetchSubscriptions error', err);
+                setTopics(['']);
+            }
+        }
+        fetchSubscriptions();
+    }, [navigate]);
 
     const handleSubmit = async () => {
         try {
@@ -38,7 +69,8 @@ export default function SubscribeTopics() {
             }
             const data = await res.json();
             alert(`Subscribe success: ${data.message || 'OK'}`);
-            return data;
+            navigate('/home')
+            return;
         } catch (err) {
             console.error('Exception:', err);
         }
@@ -66,12 +98,7 @@ export default function SubscribeTopics() {
                                 />
                                 <button
                                     onClick={() => removeTopic(idx)}
-                                    disabled={topics.length === 1}
-                                    className={`ml-2 p-2 rounded-full text-white focus:outline-none ${
-                                        topics.length === 1
-                                            ? 'bg-gray-300 cursor-not-allowed'
-                                            : 'bg-red-500 hover:bg-red-600'
-                                    }`}
+                                    className="ml-2 p-2 rounded-full bg-red-500 hover:bg-red-600 text-white focus:outline-none"
                                     aria-label="Delete Topic"
                                 >
                                     &times;

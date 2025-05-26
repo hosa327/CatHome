@@ -51,7 +51,6 @@ export default function UserInfoSetting() {
             });
             const data = await res.json();
             if (!res.ok) {
-
                 throw new Error(data.message || 'Password change failed.');
             }
             setPasswordSuccess('Password updated successfully!');
