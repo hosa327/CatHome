@@ -1,7 +1,6 @@
 package CatHome.demo.controller;
 
 import CatHome.demo.dto.ApiResponse;
-import CatHome.demo.exception.UserException;
 import CatHome.demo.service.AwsIotService;
 import CatHome.demo.service.UserService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -109,9 +108,6 @@ public class MqttController {
         }
         Long userId = (Long) session.getAttribute("userId");
         try {
-
-            IotService.subscribeTopic(topicList, userId);
-
             IotService.syncTopics(topicList, userId);
             ApiResponse response = new ApiResponse<Void>(1, "Subscribed to topics: " + topicList, null);
             return ResponseEntity.ok()

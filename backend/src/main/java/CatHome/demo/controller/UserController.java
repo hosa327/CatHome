@@ -1,12 +1,9 @@
 package CatHome.demo.controller;
 import CatHome.demo.dto.ApiResponse;
-import CatHome.demo.exception.UserException;
 import CatHome.demo.model.User;
-import CatHome.demo.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -75,7 +72,7 @@ public class UserController {
 
     @GetMapping("/userInfo")
     public ResponseEntity<?> getAvatar(HttpServletRequest request,
-                                       @RequestParam List<String> info) throws IOException {;
+                                       @RequestParam List<String> info) {
         HttpSession session = request.getSession(false);
         if (session == null || session.getAttribute("userId") == null) {
             ApiResponse response = new ApiResponse<Void>(0, "Session is invalid or has expired", null);
@@ -83,6 +80,7 @@ public class UserController {
                     body(response);
         }
         Long userId = (Long) session.getAttribute("userId");
+
 
         Map<String,Object> result = new HashMap<>();
         for(String type: info){
@@ -93,6 +91,10 @@ public class UserController {
                     break;
                 case "userId":
                     result.put("userId", userId);
+                    break;
+                case "userName":
+                    String userName = userService.getUserName(userId);
+                    result.put("userName", userName);
                     break;
             }
         }
