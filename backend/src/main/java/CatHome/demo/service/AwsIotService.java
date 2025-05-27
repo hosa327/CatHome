@@ -1,7 +1,7 @@
 package CatHome.demo.service;
 
 import CatHome.demo.exception.ConnectionException;
-import CatHome.demo.model.HomeKitData;
+import CatHome.demo.model.LatestDataMap;
 import CatHome.demo.model.UserMessages;
 import CatHome.demo.repository.IoTMessageRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -37,6 +37,8 @@ public class AwsIotService {
     }
     @Autowired
     private HomeKitDataPusher pusher;
+
+    private final LatestDataMap latestDataMap = new LatestDataMap();
 
 
 
@@ -97,10 +99,12 @@ public class AwsIotService {
                                 log.info("Received：topic={}，payload={}", msg.getTopic(), payload);
                                 messageService.saveMsg(userId, newTopic, payload, receivedAt);
                                 try {
-                                    HomeKitData pushData = parsePayload(payload);
-                                    pusher.push(pushData);
+                                    latestDataMap.handleMessage(newTopic, payload);
+                                    String latestMessage = latestDataMap.getLatestJson();
+                                    log.info("Aggregated latestData: {}", latestMessage);
+                                    pusher.push(latestMessage);
                                 } catch (Exception e) {
-                                    e.printStackTrace();
+                                    log.error("Errors when save latestData: ", e);
                                 }
                             }
 
@@ -113,9 +117,6 @@ public class AwsIotService {
         }
 //    }
 
-    private HomeKitData parsePayload(String json) throws JsonProcessingException {
-        return new ObjectMapper().readValue(json, HomeKitData.class);
-    }
 
     public Map<String, Object> getSubscribedTopics(Long userId) throws JsonProcessingException {
         String subscription = messagesRepository.findSubscriptions(userId);

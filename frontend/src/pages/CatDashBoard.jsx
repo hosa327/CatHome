@@ -1,77 +1,80 @@
-// src/pages/CatDashboard.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import SockJS from 'sockjs-client';
-import { Client } from '@stomp/stompjs';
+// src/pages/Home.jsx
+import React, { useState, useEffect } from "react";
+import Sidebar from "./homeSidebar";
+import SockJS from "sockjs-client";
+import { Client } from "@stomp/stompjs";
 
-export default function CatDashboard() {
-    const [data, setData] = useState({
-        temperature: null,
-        weight: null,
-        waterNeeded: null,
-        time: null
-    });
-    const clientRef = useRef(null);
+export default function Home() {
+    // 存后端推过来的 { catName, topic1: {...}, topic2: {...}, ... }
+    const [data, setData] = useState({});
+    const [client, setClient] = useState(null);
 
+    // 建WebSocket+STOMP连接，订阅 /topic/catData
     useEffect(() => {
-        // 1. 创建 STOMP 客户端
-        const stompClient = new Client({
-            // 告诉它如何创建底层 WebSocket
-            webSocketFactory: () => new SockJS('http://localhost:2800/ws/catData'),
-            // 连接成功后的回调
-            onConnect: () => {
-                console.log('WebSocket connected');
-                // 2. 订阅后端广播的 /topic/catData
-                stompClient.subscribe('/topic/catData', message => {
-                    const payload = JSON.parse(message.body);
-                    setData(payload);
-                });
-            },
-            // 出错重连（可选）
+        const sock = new SockJS("http://localhost:2800/ws");
+        const stomp = new Client({
+            webSocketFactory: () => sock,
             reconnectDelay: 5000,
-            // 错误回调
-            onStompError: frame => {
-                console.error('Broker reported error: ' + frame.headers['message']);
-                console.error('Detail: ' + frame.body);
-            }
         });
-
-        clientRef.current = stompClient;
-        // 激活连接
-        stompClient.activate();
+        stomp.onConnect = () => {
+            stomp.subscribe("/topic/catData", (msg) => {
+                try {
+                    setData(JSON.parse(msg.body));
+                } catch (e) {
+                    console.error("Invalid JSON", e);
+                }
+            });
+        };
+        stomp.activate();
+        setClient(stomp);
 
         return () => {
-            // 组件卸载时断开
-            stompClient.deactivate();
+            if (client) client.deactivate();
         };
     }, []);
 
-    return (
-        <div style={{ padding: 20, fontFamily: 'sans-serif' }}>
-            <h2>猫咪实时 Dashboard</h2>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                <Card title="体温 (℃)" value={data.temperature != null ? data.temperature.toFixed(1) : '--'} />
-                <Card title="体重 (kg)" value={data.weight != null ? data.weight.toFixed(2) : '--'} />
-                <Card title="需补水" value={data.waterNeeded != null ? (data.waterNeeded ? '是' : '否') : '--'} />
-                <Card title="最后更新时间" value={data.time || '--'} wide />
-            </div>
-        </div>
-    );
-}
+    // 过滤出主题键，不展示 catName 自身
+    const topics = Object.keys(data).filter((k) => k !== "catName");
 
-// 下面是 Card 子组件，你也可以直接写成 div
-function Card({ title, value, wide }) {
     return (
-        <div
-            style={{
-                border: '1px solid #ddd',
-                borderRadius: 4,
-                padding: 12,
-                width: wide ? 300 : 150,
-                boxSizing: 'border-box'
-            }}
-        >
-            <div style={{ fontSize: 14, color: '#666' }}>{title}</div>
-            <div style={{ fontSize: 24, marginTop: 4 }}>{value}</div>
+        <div className="bg-[#FCE287] h-screen flex">
+            <Sidebar />
+
+            <div className="w-5/6 p-8 overflow-auto">
+                {/* Cat name */}
+                {data.catName && (
+                    <h1 className="text-4xl font-bold text-center mb-6">
+                        {data.catName}
+                    </h1>
+                )}
+
+                <div className="flex flex-wrap justify-around items-start gap-6">
+                    {topics.map((topic) => (
+                        <div
+                            key={topic}
+                            className="bg-white rounded-lg shadow-md w-1/4 h-96 flex flex-col items-start p-4"
+                        >
+                            {/* Name with topic */}
+                            <h2 className="text-2xl font-semibold mb-4 capitalize">
+                                {topic}
+                            </h2>
+                            {/* All payload key */}
+                            {data[topic] && Object.entries(data[topic]).map(([key, val]) => (
+                                <div
+                                    key={key}
+                                    className="w-full flex justify-between py-1 border-b last:border-0"
+                                >
+                                    <span className="font-medium">{key}</span>
+                                    <span>{String(val)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ))}
+                    {topics.length === 0 && (
+                        <p className="text-gray-600">Waiting for data</p>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
