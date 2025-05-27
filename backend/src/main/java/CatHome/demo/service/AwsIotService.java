@@ -1,6 +1,7 @@
 package CatHome.demo.service;
 
 import CatHome.demo.exception.ConnectionException;
+import CatHome.demo.model.HomeKitData;
 import CatHome.demo.model.UserMessages;
 import CatHome.demo.repository.IoTMessageRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -34,6 +35,8 @@ public class AwsIotService {
         this.messagesRepository = messagesRepository;
         this.messageService = messageService;
     }
+    @Autowired
+    private HomeKitDataPusher pusher;
 
 
 
@@ -60,9 +63,9 @@ public class AwsIotService {
         List<String> toUnsubscribe = oldSet.stream()
                 .filter(t -> !newSet.contains(t))
                 .toList();
-        List<String> toSubscribe = newSet.stream()
-                .filter(t -> !oldSet.contains(t))
-                .toList();
+//        List<String> toSubscribe = newSet.stream()
+//                .filter(t -> !oldSet.contains(t))
+//                .toList();
 
 
         for (String oldTopic : toUnsubscribe) {
@@ -80,8 +83,8 @@ public class AwsIotService {
                 log.warn("Unsubscribe {} failed", topic, e);
             }
         }
-        for (String newTopic : toSubscribe){
-            if (!oldSet.contains(newTopic)) {
+        for (String newTopic : newTopics){
+//            if (!oldSet.contains(newTopic)) {
                 try {
                     this.connection.subscribe(newTopic,
                             QualityOfService.AT_LEAST_ONCE,
@@ -92,9 +95,10 @@ public class AwsIotService {
                                                 .now()
                                                 .format(java.time.format.DateTimeFormatter.ISO_DATE_TIME);
                                 log.info("Received：topic={}，payload={}", msg.getTopic(), payload);
-
+                                messageService.saveMsg(userId, newTopic, payload, receivedAt);
                                 try {
-                                    messageService.saveMsg(userId, newTopic, payload, receivedAt);
+                                    HomeKitData pushData = parsePayload(payload);
+                                    pusher.push(pushData);
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                 }
@@ -107,6 +111,10 @@ public class AwsIotService {
                 }
             }
         }
+//    }
+
+    private HomeKitData parsePayload(String json) throws JsonProcessingException {
+        return new ObjectMapper().readValue(json, HomeKitData.class);
     }
 
     public Map<String, Object> getSubscribedTopics(Long userId) throws JsonProcessingException {

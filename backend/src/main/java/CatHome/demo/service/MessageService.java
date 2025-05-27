@@ -13,6 +13,6 @@ public class MessageService {
     @Transactional
     public void saveMsg(Long userId, String topic, String payload, String ts) {
         messageRepository.appendMessageWithTimestamp(userId, topic, payload, ts);
-        System.out.println(payload);
+
     }
 }

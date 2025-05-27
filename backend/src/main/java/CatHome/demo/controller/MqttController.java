@@ -1,6 +1,7 @@
 package CatHome.demo.controller;
 
 import CatHome.demo.dto.ApiResponse;
+import CatHome.demo.model.HomeKitData;
 import CatHome.demo.service.AwsIotService;
 import CatHome.demo.service.UserService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -10,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -141,4 +144,11 @@ public class MqttController {
                     .body(response);
         }
     }
+
+//    @MessageMapping("/requestLatest")
+//    @SendTo("/topic/catData")
+//    public HomeKitData handleRequestLatest(){
+//
+//        return
+//    }
 }
