@@ -23,13 +23,16 @@ public class WebSocketController {
     }
 
     @MessageMapping("/requestLatest")
-    public void onRequestLatest(@Payload Map<String,String> payload, Principal principal) {
-        Long userId  = Long.valueOf(payload.get("userId"));
+    public void onRequestLatest(@Payload Map<String,String> payload) {
+        System.out.println("Received payload: " + payload);
+        String userIdStr  = payload.get("userId");
         String catName = payload.get("catName");
+
+        Long userId = Long.valueOf(userIdStr);
 
         Optional<LatestDataMessage> msg = latestDataMessageRepository.findByUserIdAndCatName(userId, catName);
         if (msg.isPresent()) {
-            template.convertAndSend("/topic/catData", msg.get().getPayload());
+            template.convertAndSend("/topic/" + userId +"/catData", msg.get().getPayload());
         }
     }
 }

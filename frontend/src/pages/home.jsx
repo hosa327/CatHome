@@ -4,38 +4,67 @@ import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 import { useLocation, useNavigate } from "react-router-dom";
 
+
 export default function Home() {
     const [data, setData] = useState({});
     const [client, setClient] = useState(null);
     const navigate = useNavigate();
     const location = useLocation();
-    const { userId } = location.state || {};
+    const [userId, setUserId] = useState(null);
 
     const colorMap = {
         water: "text-blue-500",
         food:  "text-green-500",
         poop:  "text-yellow-700",
     };
+    useEffect(() => {
+        const params = new URLSearchParams();
+        params.append('info', 'userId');
+        fetch(`http://localhost:2800/userInfo?${params.toString()}`, {
+            method: 'GET',
+            credentials: 'include',
+        })
+            .then(async res => {
+                if (!res.ok) {
+                    const response = await res.json();
+                    alert(response.message);
+                    if (response.code === 3) {
+                        navigate('/home');
+                        return;
+                    }
+                    throw new Error(response.message);
+                }
+                return res.json();
+            })
+            .then(data => {
+                setUserId(data.userId);
+            })
+            .catch(err => {
+                console.error('Failed to get user information!', err);
+            });
+    }, []);
+
 
     useEffect(() => {
+        if (!userId) return;
         const sock = new SockJS("http://localhost:2800/ws");
         const stomp = new Client({
             webSocketFactory: () => sock,
             reconnectDelay: 2000,
         });
         stomp.onConnect = () => {
-            stomp.subscribe("/topic/catData", (msg) => {
-                try {
-                    setData(JSON.parse(msg.body));
-                } catch (e) {
-                    console.error("Invalid JSON", e);
-                }
+            stomp.subscribe("/topic/" + userId +"/catData", (msg) => {
+                    try {
+                        setData(JSON.parse(msg.body));
+                    } catch (e) {
+                        console.error("Invalid JSON", e);
+                    }
+                });
+            const catName = "Mimi";
+            stomp.publish({
+                destination: "/app/requestLatest",
+                body: JSON.stringify({userId, catName})
             });
-            // const catName = "Mimi";
-            // stomp.publish({
-            //     destination: "/app/requestLatest",
-            //     body: JSON.stringify({userId, catName})
-            // });
         };
 
         stomp.activate();
@@ -44,7 +73,18 @@ export default function Home() {
         return () => {
             if (client) client.deactivate();
         };
-    }, []);
+    }, [userId]);
+
+    useEffect(() => {
+        if (!userId) return;
+        if (client && client.connected && userId) {
+            const catName = "Mimi";
+            client.publish({
+                destination: "/app/requestLatest",
+                body: JSON.stringify({ userId, catName }),
+            });
+        }
+    }, [location.key, client, userId]);
 
 
     const topics = Object.keys(data).filter((k) => k !== "catName");

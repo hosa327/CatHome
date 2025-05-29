@@ -14,7 +14,7 @@ public class HomeKitDataPusher {
         this.template = template;
     }
 
-    public void push(String msg) {
-        template.convertAndSend("/topic/catData", msg);
+    public void pushLatestMessage(String msg, Long userId) {
+        template.convertAndSend("/topic/"+ userId +"/catData", msg);
     }
 }

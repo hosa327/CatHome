@@ -101,7 +101,7 @@ public class AwsIotService {
                                 LatestDataMessage latestDataMessage = messageService.updateLatestDataMessage(userId, newTopic, payload);
                                 String latestMessage = latestDataMessage.getPayload();
                                 log.info("Latest Message: latestMessage={}", latestMessage);
-                                pusher.push(latestMessage);
+                                pusher.pushLatestMessage(latestMessage, userId);
                             } catch (Exception e) {
                                 log.error("Errors when save latestData: ", e);
                             }
