@@ -1,9 +1,9 @@
 package CatHome.demo.service;
 
 import CatHome.demo.exception.ConnectionException;
-import CatHome.demo.model.LatestDataMap;
-import CatHome.demo.model.UserMessages;
-import CatHome.demo.repository.IoTMessageRepository;
+import CatHome.demo.model.LatestDataMessage;
+import CatHome.demo.repository.TopicMessageRepository;
+import CatHome.demo.repository.TopicRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,25 +22,26 @@ import java.util.*;
 @Service
 public class AwsIotService {
     private final AwsConnectionFactory connFactory;
-    private final IoTMessageRepository messagesRepository;
+//    private final IoTMessageRepository messagesRepository;
+    private final TopicRepository topicRepository;
+    private final TopicMessageRepository topicMessageRepository;
     private final MessageService messageService;
     private MqttClientConnection connection;
     private static final Logger log = LoggerFactory.getLogger(AwsIotService.class);
+    private final HomeKitDataPusher pusher;
 
     @Autowired
     public AwsIotService(AwsConnectionFactory connFactory,
-                         IoTMessageRepository messagesRepository,
-                         MessageService messageService) {
+                         MessageService messageService,
+                         TopicRepository topicRepository,
+                         TopicMessageRepository topicMessageRepository,
+                         HomeKitDataPusher pusher) {
         this.connFactory = connFactory;
-        this.messagesRepository = messagesRepository;
         this.messageService = messageService;
+        this.topicRepository = topicRepository;
+        this.topicMessageRepository = topicMessageRepository;
+        this.pusher = pusher;
     }
-    @Autowired
-    private HomeKitDataPusher pusher;
-
-    private final LatestDataMap latestDataMap = new LatestDataMap();
-
-
 
     public void initConnection(Long userId) throws Exception {
         this.connection = connFactory.createConnection(userId);
@@ -49,32 +50,32 @@ public class AwsIotService {
 
     @Transactional
     public void syncTopics(List<String> newTopics, Long userId) throws JsonProcessingException {
-        String oldTopics = messagesRepository.findSubscriptions(userId);
-        Map<String, ?> oldMap = new ObjectMapper().readValue(oldTopics, new TypeReference<Map<String, ?>>(){});
-        Set<String> oldSet = oldMap.keySet();
-        Set<String> newSet = new HashSet<>(newTopics);
-
         if (this.connection == null){
             throw new ConnectionException("Failed to connect to AWS IoT Core");
         }
 
-        if (!messagesRepository.existsById(userId)) {
-            messagesRepository.save(new UserMessages(userId));
+        Set<String> newSet = new HashSet<>(newTopics);
+        List<String> toUnsubscribe;
+
+
+        Optional<List<String>> optOldTopics =topicRepository.findTopicNamesByUserId(userId);
+        if(!optOldTopics.isPresent()){
+            toUnsubscribe = newSet.stream().toList();
+        }else{
+            List<String> oldTopics = optOldTopics.get();
+            Set<String> oldSet = new HashSet<>(oldTopics);
+            toUnsubscribe = oldSet.stream()
+                    .filter(t -> !newSet.contains(t))
+                    .toList();
         }
 
-        List<String> toUnsubscribe = oldSet.stream()
-                .filter(t -> !newSet.contains(t))
-                .toList();
-//        List<String> toSubscribe = newSet.stream()
-//                .filter(t -> !oldSet.contains(t))
-//                .toList();
 
-
+        //new data construction
         for (String oldTopic : toUnsubscribe) {
-            messagesRepository.removeTopicKey(userId, oldTopic);
+            messageService.deleteTopic(userId, oldTopic);
         }
         for (String newTopic : newSet) {
-            messagesRepository.addTopicKey(userId, newTopic);
+            messageService.addTopic(userId, newTopic);
         }
 
         for (String topic : toUnsubscribe) {
@@ -85,44 +86,37 @@ public class AwsIotService {
                 log.warn("Unsubscribe {} failed", topic, e);
             }
         }
+
+        //new data construction
         for (String newTopic : newTopics){
 //            if (!oldSet.contains(newTopic)) {
-                try {
-                    this.connection.subscribe(newTopic,
-                            QualityOfService.AT_LEAST_ONCE,
-                            msg -> {
-                                String payload = new String(msg.getPayload(), StandardCharsets.UTF_8);
-                                String receivedAt =
-                                        java.time.LocalDateTime
-                                                .now()
-                                                .format(java.time.format.DateTimeFormatter.ISO_DATE_TIME);
-                                log.info("Received：topic={}，payload={}", msg.getTopic(), payload);
-                                messageService.saveMsg(userId, newTopic, payload, receivedAt);
-                                try {
-                                    latestDataMap.handleMessage(newTopic, payload);
-                                    String latestMessage = latestDataMap.getLatestJson();
-                                    log.info("Aggregated latestData: {}", latestMessage);
-                                    pusher.push(latestMessage);
-                                } catch (Exception e) {
-                                    log.error("Errors when save latestData: ", e);
-                                }
+            try {
+                this.connection.subscribe(newTopic,
+                        QualityOfService.AT_LEAST_ONCE,
+                        msg -> {
+                            String payload = new String(msg.getPayload(), StandardCharsets.UTF_8);
+                            log.info("Received：topic={}，payload={}", msg.getTopic(), payload);
+                            messageService.saveTopicMessage(userId, newTopic, payload);
+                            try {
+                                LatestDataMessage latestDataMessage = messageService.updateLatestDataMessage(userId, newTopic, payload);
+                                String latestMessage = latestDataMessage.getPayload();
+                                log.info("Latest Message: latestMessage={}", latestMessage);
+                                pusher.push(latestMessage);
+                            } catch (Exception e) {
+                                log.error("Errors when save latestData: ", e);
                             }
+                        }
 
-                    ).get();
-                    log.info("subscribe {}", newTopic);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                ).get();
+                log.info("subscribe {}", newTopic);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+        }
         }
 //    }
 
 
-    public Map<String, Object> getSubscribedTopics(Long userId) throws JsonProcessingException {
-        String subscription = messagesRepository.findSubscriptions(userId);
-        Map<String, Object> map = new ObjectMapper().readValue(subscription, new TypeReference<>(){});
-        return map;
-    }
 
     @PreDestroy
     public void cleanup() {

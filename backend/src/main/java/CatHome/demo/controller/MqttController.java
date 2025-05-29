@@ -2,8 +2,8 @@ package CatHome.demo.controller;
 
 import CatHome.demo.dto.ApiResponse;
 import CatHome.demo.service.AwsIotService;
+import CatHome.demo.service.MessageService;
 import CatHome.demo.service.UserService;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +24,11 @@ public class MqttController {
     private UserService userService;
 
     @Autowired
-    private AwsIotService IotService;
+    private AwsIotService iotService;
+
+    @Autowired
+    private  MessageService messageService;
+
 
     @PostMapping(
             path = "/config/upload",
@@ -52,7 +56,7 @@ public class MqttController {
 
 
         try {
-            IotService.initConnection(userId);
+            iotService.initConnection(userId);
             System.out.print("Connection Successful");
             ApiResponse response = new ApiResponse<Void>(1, "Connection Successful", null);
             return ResponseEntity.ok()
@@ -80,7 +84,7 @@ public class MqttController {
         System.out.println(session);
 
         try {
-            IotService.initConnection(userId);
+            iotService.initConnection(userId);
             System.out.print("Connection Successful");
             ApiResponse response = new ApiResponse<Void>(1, "Connection Successful", null);
             return ResponseEntity.ok()
@@ -108,7 +112,7 @@ public class MqttController {
         }
         Long userId = (Long) session.getAttribute("userId");
         try {
-            IotService.syncTopics(topicList, userId);
+            iotService.syncTopics(topicList, userId);
             ApiResponse response = new ApiResponse<Void>(1, "Subscribed to topics: " + topicList, null);
             return ResponseEntity.ok()
                     .body(response);
@@ -129,17 +133,12 @@ public class MqttController {
         }
 
         Long userId = (Long) session.getAttribute("userId");
-        try {
-            Map<String, Object> subscriptions = IotService.getSubscribedTopics(userId);
-            ApiResponse<ArrayList> response = new ApiResponse<ArrayList>(1, "Get topics successful.", new ArrayList<>(subscriptions.keySet()));
-            return ResponseEntity.ok()
+        List<String> subscriptions = messageService.getTopics(userId);
+        ApiResponse<List<String>> response = new ApiResponse<List<String>>(1, "Get topics successful.", subscriptions);
+        return ResponseEntity.ok()
                     .body(response);
 
-        }catch (JsonProcessingException e){
-            ApiResponse<Void> response = new ApiResponse<>(5, "Failed to parse subscription data", null);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(response);
-        }
+
     }
 
 //    @MessageMapping("/requestLatest")

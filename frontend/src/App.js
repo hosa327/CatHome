@@ -7,7 +7,6 @@ import UserInfoSetting from "./pages/UserInfoSetting";
 import RegisterWizard from "./pages/register_avatar";
 import MQTTConfigPage from "./pages/MQTTConfigSetting";
 import SetTopicPage from "./pages/setTopic"
-import CatDashboard from "./pages/CatDashBoard";
 
 function App() {
   return (
@@ -19,7 +18,6 @@ function App() {
           <Route path="/userInfo" element={<UserInfoSetting />} />
           <Route path="/mqtt-config" element={<MQTTConfigPage />} />
           <Route path="/subscribe_topic" element={<SetTopicPage />} />
-          <Route path="/cat_dashboard" element={<CatDashboard />} />
           <Route path="*" element={<LoginPage />} />
       </Routes>
   );

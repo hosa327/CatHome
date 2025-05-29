@@ -1,4 +1,4 @@
-package CatHome.demo.model;
+package CatHome.demo.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

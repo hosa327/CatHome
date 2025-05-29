@@ -3,11 +3,12 @@ package CatHome.demo.service;
 import CatHome.demo.dto.UserInfo;
 import CatHome.demo.exception.EmailException;
 import CatHome.demo.exception.UserException;
+import CatHome.demo.model.LatestDataMessage;
 import CatHome.demo.model.User;
+import CatHome.demo.repository.LatestDataMessageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,8 +22,19 @@ import java.util.Optional;
 
 @Service
 public class UserService {
+    private final UserRepository userRepository;
+    private final HomeKitDataPusher pusher;
+    private final LatestDataMessageRepository latestDataMessageRepository;
+
     @Autowired
-    private UserRepository userRepository;
+    public UserService(UserRepository userRepository,
+                       HomeKitDataPusher pusher,
+                       LatestDataMessageRepository latestDataMessageRepository) {
+        this.userRepository = userRepository;
+        this.pusher = pusher;
+        this.latestDataMessageRepository = latestDataMessageRepository;
+    }
+
 
     @Value("${BASE_URL}")
     String baseUrl;
