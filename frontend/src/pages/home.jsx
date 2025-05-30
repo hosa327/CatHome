@@ -54,12 +54,12 @@ export default function Home() {
         });
         stomp.onConnect = () => {
             stomp.subscribe("/topic/" + userId +"/catData", (msg) => {
-                    try {
-                        setData(JSON.parse(msg.body));
-                    } catch (e) {
-                        console.error("Invalid JSON", e);
-                    }
-                });
+                try {
+                    setData(JSON.parse(msg.body));
+                } catch (e) {
+                    console.error("Invalid JSON", e);
+                }
+            });
             const catName = "Mimi";
             stomp.publish({
                 destination: "/app/requestLatest",

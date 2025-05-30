@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface LatestDataMessageRepository
@@ -28,13 +29,12 @@ public interface LatestDataMessageRepository
     );
 
     @Query(value = """
-      SELECT user_id,
-             cat_name,
-             payload
+      SELECT cat_name
       FROM latest_data_messages
       WHERE user_id = :userId
       """, nativeQuery = true)
-    Optional<LatestDataMessage> findByUserId(@Param("userId") Long userId);
+    List<String> findCatNamesByUserId(@Param("userId") Long userId);
+
 
     @Query(value = """
       SELECT user_id,

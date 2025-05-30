@@ -10,10 +10,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.jayway.jsonpath.internal.function.sequence.Last;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,14 +25,16 @@ public class MessageService {
     private final LatestDataMessageRepository latestDataMessageRepository;
     private final ObjectMapper objectMapper;
     private static final Logger log = LoggerFactory.getLogger(MessageService.class);
+    private final HomeKitDataPusher pusher;
     public MessageService(UserMessageRepository userMessageRepository,
                           TopicRepository topicRepository,
                           LatestDataMessageRepository latestDataMessageRepository,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper, HomeKitDataPusher pusher) {
         this.userMessageRepository = userMessageRepository;
         this.topicRepository = topicRepository;
         this.latestDataMessageRepository = latestDataMessageRepository;
         this.objectMapper = objectMapper;
+        this.pusher = pusher;
     }
 
     public Map<String, String> separateMessage(String msg) {
@@ -138,7 +138,7 @@ public class MessageService {
     }
 
     @Transactional
-    public LatestDataMessage updateLatestDataMessage(Long userId, String topicName, String newMessage){
+    public void updateLatestDataMessage(Long userId, String topicName, String newMessage){
         Map<String, String> messageMap = separateMessage(newMessage);
         Optional<List<String>> optTopicList = topicRepository.findTopicNamesByUserId(userId);
         List<String> topicList = optTopicList.get();
@@ -183,8 +183,9 @@ public class MessageService {
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Parsing payload failed: " + e.getOriginalMessage(), e);
         }
-        log.info(msg.getPayload());
-        return latestDataMessageRepository.save(msg);
-    }
 
+        String latestMessage = msg.getPayload();
+        log.info("Latest Message: latestMessage={}", latestMessage);
+        pusher.pushLatestMessage(latestMessage, userId);
+    }
 }

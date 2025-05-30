@@ -22,7 +22,7 @@ import java.util.*;
 @Service
 public class AwsIotService {
     private final AwsConnectionFactory connFactory;
-//    private final IoTMessageRepository messagesRepository;
+    //    private final IoTMessageRepository messagesRepository;
     private final TopicRepository topicRepository;
     private final TopicMessageRepository topicMessageRepository;
     private final MessageService messageService;
@@ -98,10 +98,7 @@ public class AwsIotService {
                             log.info("Received：topic={}，payload={}", msg.getTopic(), payload);
                             messageService.saveTopicMessage(userId, newTopic, payload);
                             try {
-                                LatestDataMessage latestDataMessage = messageService.updateLatestDataMessage(userId, newTopic, payload);
-                                String latestMessage = latestDataMessage.getPayload();
-                                log.info("Latest Message: latestMessage={}", latestMessage);
-                                pusher.pushLatestMessage(latestMessage, userId);
+                                messageService.updateLatestDataMessage(userId, newTopic, payload);
                             } catch (Exception e) {
                                 log.error("Errors when save latestData: ", e);
                             }
@@ -113,7 +110,7 @@ public class AwsIotService {
                 e.printStackTrace();
             }
         }
-        }
+    }
 //    }
 
 
