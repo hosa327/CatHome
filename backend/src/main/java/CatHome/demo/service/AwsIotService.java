@@ -47,6 +47,12 @@ public class AwsIotService {
         this.connection = connFactory.createConnection(userId);
     }
 
+    public boolean checkStatus() {
+        return connection != null;
+    }
+
+
+
 
     @Transactional
     public void syncTopics(List<String> newTopics, Long userId) throws JsonProcessingException {
@@ -112,6 +118,8 @@ public class AwsIotService {
         }
     }
 //    }
+
+
 
 
 

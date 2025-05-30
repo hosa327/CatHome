@@ -141,6 +141,20 @@ public class MqttController {
 
     }
 
+    @GetMapping("/awsStatus")
+    public ResponseEntity<ApiResponse<?>> getAWSstatus(HttpServletRequest request){
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            ApiResponse response = new ApiResponse<Void>(3,"Session is invalid or has expired",null);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(response);
+        }
+        boolean status = iotService.checkStatus();
+        ApiResponse response = new ApiResponse<Map<String, Boolean>> (1, "Check AWS connection", Map.of("isConnected", status));
+        return ResponseEntity.ok()
+                .body(response);
+    }
+
 //    @MessageMapping("/requestLatest")
 //    @SendTo("/topic/catData")
 //    public HomeKitData handleRequestLatest(){

@@ -11,6 +11,8 @@ export default function Home() {
     const navigate = useNavigate();
     const location = useLocation();
     const [userId, setUserId] = useState(null);
+    const [catList, setCatList] = useState([]);
+    const [selectedCat, setSelectedCat] = useState(null)
 
     const colorMap = {
         water: "text-blue-500",
@@ -53,38 +55,62 @@ export default function Home() {
             reconnectDelay: 2000,
         });
         stomp.onConnect = () => {
-            stomp.subscribe("/topic/" + userId +"/catData", (msg) => {
-                try {
-                    setData(JSON.parse(msg.body));
-                } catch (e) {
-                    console.error("Invalid JSON", e);
-                }
-            });
-            const catName = "Mimi";
+            setClient(stomp);
+
+            stomp.subscribe(`/topic/${userId}/catList`, (msg) =>{
+                const CatList = JSON.parse(msg.body);
+                setCatList(CatList);
+            })
+
+            console.log("request Cat list")
             stomp.publish({
-                destination: "/app/requestLatest",
-                body: JSON.stringify({userId, catName})
+                destination: "/app/requestCatList",
+                body: JSON.stringify({ userId }),
             });
         };
 
         stomp.activate();
-        setClient(stomp);
 
         return () => {
             if (client) client.deactivate();
         };
     }, [userId]);
 
-    useEffect(() => {
-        if (!userId) return;
-        if (client && client.connected && userId) {
-            const catName = "Mimi";
-            client.publish({
-                destination: "/app/requestLatest",
-                body: JSON.stringify({ userId, catName }),
-            });
+
+    useEffect(()=>{
+        if (!client || catList.length === 0) return;
+
+        if(selectedCat === null) {
+            const cat = catList[0];
+            console.log("cat:",cat);
+            setSelectedCat(cat);
         }
-    }, [location.key, client, userId]);
+
+        console.log(catList);
+    }, [catList, client, selectedCat]);
+
+
+    useEffect(() => {
+        if (!client || !userId || !selectedCat) return;
+
+        const topic = `/topic/${userId}/${selectedCat}`;
+        console.log("Subscribe topic:", topic);
+
+        const subscription = client.subscribe(topic, (msg) => {
+            const parsed = JSON.parse(msg.body);
+            console.log("New Data：", parsed);
+            setData(parsed);
+        });
+
+        console.log("request message");
+        client.publish({
+            destination: "/app/requestLatest",
+            body: JSON.stringify({ userId, catName: selectedCat }),
+        });
+
+        return () => subscription.unsubscribe();
+    }, [client, userId, selectedCat]);
+
 
 
     const topics = Object.keys(data).filter((k) => k !== "catName");

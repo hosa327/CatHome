@@ -30,7 +30,7 @@ export default function Sidebar() {
                 const response = await res.json();
                 alert(`Connection failed: ${response.message}`);
                 if (response.code === 3) {
-                    navigate('/home');
+                    navigate('/login');
                     return;
                 }
                 throw new Error(response.message);
@@ -43,6 +43,34 @@ export default function Sidebar() {
             console.error('Exception:', err);
         }
     };
+
+    const checkAwsStatus = async () => {
+        try {
+            const res = await fetch('http://localhost:2800/mqtt/awsStatus', {
+                method: 'GET',
+                credentials: 'include',
+            });
+
+            if (!res.ok) {
+                const response = await res.json();
+                console.error('Failed to fetch AWS status:', response.message);
+                if (response.code === 3) {
+                    navigate('/login');
+                }
+                return;
+            }
+
+            const response = await res.json();
+            setIsAwsConnected(response.data.isConnected);
+        } catch (err) {
+            console.error('Error fetching AWS status:', err);
+        }
+    };
+
+    useEffect(() => {
+        checkAwsStatus();
+    }, []);
+
 
 
     const handleSetTopic = () => {
@@ -64,7 +92,7 @@ export default function Sidebar() {
                     const response = await res.json();
                     alert(response.message);
                     if (response.code === 3) {
-                        navigate('/home');
+                        navigate('/login');
                         return;
                     }
                     throw new Error(response.message);

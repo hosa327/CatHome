@@ -13,15 +13,17 @@ export default function UserInfoSetting() {
     const [passwordSuccess, setPasswordSuccess] = useState('');
     const [passwordLoading, setPasswordLoading] = useState(false);
 
+    // Avatar states
+    const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+    const [avatarFile, setAvatarFile] = useState(null);
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        // TODO: Integrate with your API
         const payload = { name, catName, catBreed, email };
         console.log('Submitting profile:', payload);
         alert('Profile saved!');
     };
 
-    // Password validation rules
     const passwordValidation = useMemo(() => ({
         hasUpper: /[A-Z]/.test(newPassword),
         hasLower: /[a-z]/.test(newPassword),
@@ -30,13 +32,17 @@ export default function UserInfoSetting() {
 
     const handleChangePassword = async (e) => {
         e.preventDefault();
+        if (!name && !catName && !catBreed && !email) {
+            alert('Please fill at least one profile field before saving.');
+            return;
+        }
+
         setPasswordError('');
         setPasswordSuccess('');
         if (!currentPassword || !newPassword) {
             setPasswordError('Please fill in both fields.');
             return;
         }
-        // Inline validations
         if (!passwordValidation.hasUpper || !passwordValidation.hasLower || !passwordValidation.minLength) {
             setPasswordError('Password must include uppercase, lowercase letters, and be at least 8 characters.');
             return;
@@ -50,9 +56,7 @@ export default function UserInfoSetting() {
                 body: JSON.stringify({ currentPassword, newPassword }),
             });
             const data = await res.json();
-            if (!res.ok) {
-                throw new Error(data.message || 'Password change failed.');
-            }
+            if (!res.ok) throw new Error(data.message || 'Password change failed.');
             setPasswordSuccess('Password updated successfully!');
             setTimeout(() => {
                 setPasswordModalOpen(false);
@@ -67,6 +71,30 @@ export default function UserInfoSetting() {
         }
     };
 
+    const handleAvatarUpload = async () => {
+        if (!avatarFile) {
+            alert('Please select an image file.');
+            return;
+        }
+        const formData = new FormData();
+        formData.append('file', avatarFile);
+
+        try {
+            const res = await fetch('http://localhost:2800/users/avatar', {
+                method: 'POST',
+                credentials: 'include',
+                body: formData,
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Upload failed.');
+            alert('Avatar uploaded successfully!');
+            setAvatarModalOpen(false);
+            setAvatarFile(null);
+        } catch (err) {
+            alert(err.message);
+        }
+    };
+
     return (
         <div className="bg-[#FCE287] h-screen flex">
             <Sidebar />
@@ -74,118 +102,44 @@ export default function UserInfoSetting() {
                 <div className="bg-white rounded-lg shadow-md w-full max-w-2xl p-6">
                     <h2 className="text-2xl font-semibold text-yellow-600 mb-6">Edit Profile</h2>
                     <form onSubmit={handleSubmit} className="space-y-5 text-gray-700">
-                        <div>
-                            <label className="block mb-1 font-medium">Name</label>
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="Enter your name"
-                                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                            />
-                        </div>
-                        <div>
-                            <label className="block mb-1 font-medium">Cat Name</label>
-                            <input
-                                type="text"
-                                value={catName}
-                                onChange={(e) => setCatName(e.target.value)}
-                                placeholder="Enter your cat's name"
-                                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                            />
-                        </div>
-                        <div>
-                            <label className="block mb-1 font-medium">Cat Breed</label>
-                            <input
-                                type="text"
-                                value={catBreed}
-                                onChange={(e) => setCatBreed(e.target.value)}
-                                placeholder="Enter your cat's breed"
-                                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                            />
-                        </div>
-                        <div>
-                            <label className="block mb-1 font-medium">Email</label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="Enter your email address"
-                                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                            />
-                        </div>
+                        <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Name" className="w-full p-2 border rounded"/>
+                        <input type="text" value={catName} onChange={e => setCatName(e.target.value)} placeholder="Cat Name" className="w-full p-2 border rounded"/>
+                        <input type="text" value={catBreed} onChange={e => setCatBreed(e.target.value)} placeholder="Cat Breed" className="w-full p-2 border rounded"/>
+                        <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" className="w-full p-2 border rounded"/>
+
                         <div className="flex justify-between pt-6">
-                            <button
-                                type="button"
-                                onClick={() => setPasswordModalOpen(true)}
-                                className="text-yellow-600 underline hover:text-yellow-800"
-                            >
-                                Change Password
-                            </button>
-                            <button
-                                type="submit"
-                                className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600 transition"
-                            >
-                                Save
-                            </button>
+                            <button type="button" onClick={() => setPasswordModalOpen(true)} className="text-yellow-600 underline hover:text-yellow-800">Change Password</button>
+                            <button type="submit" className="bg-yellow-500 text-white px-6 py-2 rounded-lg hover:bg-yellow-600">Save</button>
                         </div>
                     </form>
+
+                    <button onClick={() => setAvatarModalOpen(true)} className="mt-4 bg-gray-200 px-4 py-2 rounded hover:bg-gray-300">Change Avatar</button>
 
                     {passwordModalOpen && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                             <div className="bg-white p-6 rounded-lg shadow-lg w-96">
                                 <h3 className="text-lg font-semibold mb-4">Change Password</h3>
-                                <form onSubmit={handleChangePassword} className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm mb-1">Current Password</label>
-                                        <input
-                                            type="password"
-                                            value={currentPassword}
-                                            onChange={(e) => setCurrentPassword(e.target.value)}
-                                            placeholder="Enter current password"
-                                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm mb-1">New Password</label>
-                                        <input
-                                            type="password"
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                            placeholder="Enter new password"
-                                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-300"
-                                        />
-                                    </div>
-                                    <div className="text-sm mt-1 space-y-1">
-                                        <p className={passwordValidation.hasUpper ? 'text-green-600' : 'text-red-500'}>
-                                            • At least one uppercase letter
-                                        </p>
-                                        <p className={passwordValidation.hasLower ? 'text-green-600' : 'text-red-500'}>
-                                            • At least one lowercase letter
-                                        </p>
-                                        <p className={passwordValidation.minLength ? 'text-green-600' : 'text-red-500'}>
-                                            • Minimum 8 characters
-                                        </p>
-                                    </div>
-                                    {passwordError && <p className="text-red-500 text-sm">{passwordError}</p>}
-                                    {passwordSuccess && <p className="text-green-600 text-sm">{passwordSuccess}</p>}
-                                    <div className="flex justify-end space-x-3 mt-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => setPasswordModalOpen(false)}
-                                            className="px-4 py-2 rounded border"
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={passwordLoading}
-                                            className={`px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 ${passwordLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        >
-                                            {passwordLoading ? 'Updating...' : 'Submit'}
-                                        </button>
-                                    </div>
-                                </form>
+                                <input type="password" placeholder="Current Password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="w-full p-2 border rounded mb-3"/>
+                                <input type="password" placeholder="New Password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full p-2 border rounded mb-3"/>
+                                <div className="flex justify-end space-x-3 mt-4">
+                                    <button onClick={() => setPasswordModalOpen(false)} className="px-4 py-2 rounded border">Cancel</button>
+                                    <button onClick={handleChangePassword} disabled={passwordLoading} className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600">
+                                        {passwordLoading ? 'Updating...' : 'Submit'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {avatarModalOpen && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                            <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+                                <h3 className="text-lg font-semibold mb-4">Upload Avatar</h3>
+                                <input type="file" accept="image/*" onChange={e => setAvatarFile(e.target.files[0])} className="w-full mb-4"/>
+                                <div className="flex justify-end space-x-3">
+                                    <button onClick={() => { setAvatarModalOpen(false); setAvatarFile(null); }} className="px-4 py-2 rounded border">Cancel</button>
+                                    <button onClick={handleAvatarUpload} className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600">Save</button>
+                                </div>
                             </div>
                         </div>
                     )}
