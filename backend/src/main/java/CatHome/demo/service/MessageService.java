@@ -3,6 +3,7 @@ package CatHome.demo.service;
 import CatHome.demo.exception.TopicException;
 import CatHome.demo.model.*;
 import CatHome.demo.repository.LatestDataMessageRepository;
+import CatHome.demo.repository.TopicMessageRepository;
 import CatHome.demo.repository.TopicRepository;
 import CatHome.demo.repository.UserMessageRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -12,10 +13,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -24,16 +33,20 @@ public class MessageService {
     private final TopicRepository topicRepository;
     private final LatestDataMessageRepository latestDataMessageRepository;
     private final ObjectMapper objectMapper;
+    private final TopicMessageRepository topicMessageRepository;
     private static final Logger log = LoggerFactory.getLogger(MessageService.class);
     private final HomeKitDataPusher pusher;
     public MessageService(UserMessageRepository userMessageRepository,
                           TopicRepository topicRepository,
                           LatestDataMessageRepository latestDataMessageRepository,
-                          ObjectMapper objectMapper, HomeKitDataPusher pusher) {
+                          ObjectMapper objectMapper,
+                          TopicMessageRepository topicMessageRepository,
+                          HomeKitDataPusher pusher) {
         this.userMessageRepository = userMessageRepository;
         this.topicRepository = topicRepository;
         this.latestDataMessageRepository = latestDataMessageRepository;
         this.objectMapper = objectMapper;
+        this.topicMessageRepository = topicMessageRepository;
         this.pusher = pusher;
     }
 
@@ -143,6 +156,8 @@ public class MessageService {
         Optional<List<String>> optTopicList = topicRepository.findTopicNamesByUserId(userId);
         List<String> topicList = optTopicList.get();
 
+        List<String> oldCatList = latestDataMessageRepository.findCatNamesByUserId(userId);
+
         String catName = messageMap.get("catName");
         String newPayload = messageMap.get("payload");
 
@@ -184,8 +199,48 @@ public class MessageService {
             throw new RuntimeException("Parsing payload failed: " + e.getOriginalMessage(), e);
         }
 
+        latestDataMessageRepository.save(msg);
+
+        List<String> catList = latestDataMessageRepository.findCatNamesByUserId(userId);
+        if(catList != oldCatList){
+            pusher.pushCatList(userId, catList);
+            log.info("New catList: catList={}", catList);
+            oldCatList = catList;
+        }
+
         String latestMessage = msg.getPayload();
         log.info("Latest Message: latestMessage={}", latestMessage);
-        pusher.pushLatestMessage(latestMessage, userId);
+        pusher.pushLatestMessage(latestMessage, userId, catName);
     }
+
+    public void writeFilteredTopicsAsCsv(OutputStream out, Long userId, String topicName, String catName ) throws IOException {
+        List<TopicMessage> all = topicMessageRepository.findByUserIdAndTopicNameAndCatName(userId, topicName, catName);
+
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8))) {
+            writer.write("catName,receivedAt,payload");
+            writer.newLine();
+
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            for (TopicMessage t : all) {
+                String cat    = escapeCsv(t.getCatName());
+                String time   = t.getReceivedAt().format(fmt);
+                String payload= escapeCsv(t.getPayload());
+
+                writer.write(cat + "," + time + "," + payload);
+                writer.newLine();
+            }
+
+            writer.flush();
+        }
+    }
+
+    private String escapeCsv(String field) {
+        if (field == null) {
+            return "";
+        }
+        boolean needsQuotes = field.contains(",") || field.contains("\"") || field.contains("\n") || field.contains("\r");
+        String escaped = field.replace("\"", "\"\""); // 把 " → ""
+        return needsQuotes ? "\"" + escaped + "\"" : escaped;
+    }
+
 }

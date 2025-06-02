@@ -31,7 +31,7 @@ export default function Home() {
                     const response = await res.json();
                     alert(response.message);
                     if (response.code === 3) {
-                        navigate('/home');
+                        navigate('/login');
                         return;
                     }
                     throw new Error(response.message);
@@ -120,11 +120,39 @@ export default function Home() {
         rows.push(topics.slice(i, i + 2));
     }
 
+    const handleExport = (topic) => {
+        const url =
+            `http://localhost:2800/export/topic-data` +
+            `?userId=${userId}` +
+            `&topicName=${encodeURIComponent(topic)}` +
+            `&catName=${encodeURIComponent(selectedCat)}`;
+        window.location.href = url;
+    };
+
     return (
         <div className="bg-[#FCE287] h-screen flex">
             <Sidebar />
 
             <div className="w-5/6 p-8 overflow-auto">
+
+                {catList.length > 0 && (
+                    <div className="flex justify-center gap-4 mb-6">
+                        {catList.map((cat) => (
+                            <button
+                                key={cat}
+                                className={`px-4 py-2 rounded-full border font-semibold transition
+                                    ${selectedCat === cat
+                                    ? 'bg-yellow-600 text-white'
+                                    : 'bg-white text-gray-800 hover:bg-yellow-100 border-gray-400'}
+                                `}
+                                onClick={() => setSelectedCat(cat)}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 {data.catName && (
                     <h1 className="text-4xl font-bold text-center mb-6">
                         {data.catName}
@@ -158,6 +186,13 @@ export default function Home() {
                                                     <span>{String(val)}</span>
                                                 </div>
                                             ))}
+
+                                        <button
+                                            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                                            onClick={() => handleExport(topic)}
+                                        >
+                                            Export
+                                        </button>
                                     </div>
                                 ))}
                                 {row.length === 1 && <div className="w-1/4" />}
