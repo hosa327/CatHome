@@ -127,11 +127,5 @@ public class UserController {
                     .status(HttpStatus.BAD_REQUEST)
                     .body(response);
         }
-
-
-
-
-
-
     }
 }

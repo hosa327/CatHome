@@ -24,8 +24,6 @@ public class SecurityConfig {
 
                 .csrf(csrf -> csrf
                         .disable()
-//                                .ignoringRequestMatchers(new AntPathRequestMatcher("/register"))
-//                        // ——或者最简单直接在测试阶段先禁用：
                 );
 
         return http.build();

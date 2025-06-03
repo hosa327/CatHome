@@ -155,10 +155,4 @@ public class MqttController {
                 .body(response);
     }
 
-//    @MessageMapping("/requestLatest")
-//    @SendTo("/topic/catData")
-//    public HomeKitData handleRequestLatest(){
-//
-//        return
-//    }
 }
