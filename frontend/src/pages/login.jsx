@@ -38,7 +38,7 @@ function LoginPage() {
     };
 
     const handleRegister = () =>{
-        navigate("/register_avatar")
+        navigate("/register")
     };
 
     return (
